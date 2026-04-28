@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	ctq "github.com/nisarg1511/concurrent-task-queue/queue"
 	"github.com/nisarg1511/concurrent-task-queue/task"
@@ -10,34 +11,57 @@ import (
 
 func main() {
 	var wg sync.WaitGroup
-	noWorkers := 10
-	worker := func(done <-chan interface{}, queue ctq.TaskQueue, wg *sync.WaitGroup, workerId int) {
+	numOfWorkers := 10
+	producer := func(done chan interface{}, numTasks int, queue *ctq.TaskQueue) <-chan task.Task {
+		tasks := make(chan task.Task)
 		go func() {
-			defer wg.Done()
-			for {
+			defer close(tasks)
+			for i := 0; i < numTasks; i++ {
 				select {
-				case t := <-queue.Get():
-					fmt.Println("Worker with ID:", workerId, ". Executing task with ID", t.Id)
+				case tasks <- task.Task{
+					Id:      i,
+					Status:  task.Pending,
+					Payload: nil,
+					Execute: nil,
+				}:
 				case <-done:
 					return
 				}
+
 			}
 		}()
+		return tasks
 	}
+	worker := func(done <-chan interface{}, queue *ctq.TaskQueue, wg *sync.WaitGroup, workerId int) {
+		defer wg.Done()
+		defer fmt.Printf("Closing worker with ID:%d!\n", workerId)
+		for {
+			select {
+			case <-done:
+				return
+			case task, ok := <-queue.Tasks():
+				if !ok {
+					return
+				}
+				fmt.Printf("Executing task!%d\n", task.Id)
+				time.Sleep(1 * time.Second)
+				fmt.Printf("Done with the task!\n")
+			}
+		}
+	}
+
+	queue := ctq.New(100)
 	done := make(chan interface{})
 	defer close(done)
-	wg.Add(noWorkers)
-	queue := ctq.GetTaskQueue(100)
-	for i := 0; i < 100; i++ {
-		queue.Add(task.Task{
-			Id:      i + 1,
-			Status:  task.Pending,
-			Execute: func() error { return nil },
-			Payload: struct{}{},
-		})
+
+	wg.Add(numOfWorkers)
+
+	for i := 1; i <= numOfWorkers; i++ {
+		go worker(done, queue, &wg, i)
 	}
-	for i := 0; i < noWorkers; i++ {
-		go worker(done, queue, &wg, i+1)
+	for task := range producer(done, 100, queue) {
+		queue.Submit(task)
 	}
+	queue.Close()
 	wg.Wait()
 }

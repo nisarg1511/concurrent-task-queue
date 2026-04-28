@@ -1,25 +1,48 @@
 package concurrenttaskqueue
 
 import (
+	"fmt"
+	"sync"
+
 	"github.com/nisarg1511/concurrent-task-queue/task"
 )
 
 type TaskQueue struct {
-	Tasks chan task.Task
+	tasks  chan task.Task
+	closed bool
+	mu     sync.Mutex
 }
 
-func (q *TaskQueue) Add(task task.Task) {
-	q.Tasks <- task
+func (q *TaskQueue) Submit(task task.Task) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.closed {
+		return fmt.Errorf("queue closed")
+	}
+	q.tasks <- task
+	return nil
 }
 
-func (q *TaskQueue) Get() <-chan task.Task {
-	return q.Tasks
-}
-
-func GetTaskQueue(capacity int) TaskQueue {
+func New(capacity int) *TaskQueue {
 	tasks := make(chan task.Task, capacity)
 	var queue = TaskQueue{
-		Tasks: tasks,
+		tasks:  tasks,
+		closed: false,
 	}
-	return queue
+	return &queue
+}
+
+func (q *TaskQueue) Close() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	if !q.closed {
+		close(q.tasks)
+		q.closed = true
+	}
+}
+
+func (q *TaskQueue) Tasks() <-chan task.Task {
+
+	return q.tasks
 }
