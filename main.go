@@ -12,7 +12,7 @@ import (
 func main() {
 	var wg sync.WaitGroup
 	numOfWorkers := 10
-	producer := func(done chan interface{}, numTasks int, queue *ctq.TaskQueue) <-chan task.Task {
+	producer := func(done chan interface{}, numTasks int) <-chan task.Task {
 		tasks := make(chan task.Task)
 		go func() {
 			defer close(tasks)
@@ -59,7 +59,7 @@ func main() {
 	for i := 1; i <= numOfWorkers; i++ {
 		go worker(done, queue, &wg, i)
 	}
-	for task := range producer(done, 100, queue) {
+	for task := range producer(done, 100) {
 		queue.Submit(task)
 	}
 	queue.Close()
