@@ -2,7 +2,7 @@ package task
 
 type Task struct {
 	Id      int
-	Execute func() error
+	Execute func(args ...any) error
 	Payload any
 	Status  TaskStatus
 }
