@@ -76,29 +76,29 @@ func StartPersistentWorkers(ctx context.Context, n int, store *sql.DB, handlers 
 	}
 }
 
-func StartWorkers(n int, done <-chan interface{}, tasks <-chan task.Task, wg *sync.WaitGroup) {
-	worker := func(workerID int) {
-		defer wg.Done()
+// func StartWorkers(n int, done <-chan interface{}, tasks <-chan task.Task, wg *sync.WaitGroup) {
+// 	worker := func(workerID int) {
+// 		defer wg.Done()
 
-		for {
-			select {
-			case <-done:
-				return
-			case t, ok := <-tasks:
-				if !ok {
-					return
-				}
-				log.Printf("worker %d executing task %d", workerID, t.Id)
-				if err := t.Execute(t.Payload); err != nil {
-					log.Printf("worker %d failed task %d: %v", workerID, t.Id, err)
-					//Later rescheduling the task
-				}
-			}
-		}
-	}
+// 		for {
+// 			select {
+// 			case <-done:
+// 				return
+// 			case t, ok := <-tasks:
+// 				if !ok {
+// 					return
+// 				}
+// 				log.Printf("worker %d executing task %d", workerID, t.Id)
+// 				if err := t.Execute(t.Payload); err != nil {
+// 					log.Printf("worker %d failed task %d: %v", workerID, t.Id, err)
+// 					//Later rescheduling the task
+// 				}
+// 			}
+// 		}
+// 	}
 
-	for i := 1; i <= n; i++ {
-		wg.Add(1)
-		go worker(i)
-	}
-}
+// 	for i := 1; i <= n; i++ {
+// 		wg.Add(1)
+// 		go worker(i)
+// 	}
+// }
